@@ -1,103 +1,282 @@
-<h1> PDSP-Bench CloudLab Cluster Setup </h1>
+# PDSP-Bench — CloudLab Cluster Setup (Apache Flink + Apache Storm)
 
-CloudLab Cluster offers research testbed that enable researchers to construct their own distributed clouds environment for evaluations and experiments. 
-It offers researchers to use bare metal hardwares for the creation of numerous isolated "slices," each providing a pristine environment ideal for experimental research on new cloud architectures. 
+This README describes how to provision **CloudLab** nodes for **PDSP-Bench** and prepare them for benchmarking **Apache Flink** and **Apache Storm** on a multi-node cluster. The CloudLab profile installs all required system dependencies and bootstrap services so that PDSP-Bench can later deploy and run Flink/Storm jobs from the controller/UI.
 
-This is a demonstration of a *repository-based* Cloudlab profile. Repository based profiles are a great way to combine a git repository (for source code control) and a Cloudlab profile (for experiment control). The Cloudlab profile that is based on this repository can be found [here](https://www.cloudlab.us/p/PortalProfiles/RepoBased).
+> Scope of this README  
+> ✅ CloudLab profile setup + node preparation  
+> ✅ Kafka + ZooKeeper cluster bootstrapping across all nodes  
+> ✅ Dependencies for both **Flink** and **Storm**  
+> ✅ Prometheus/Grafana + Node Exporter preparation  
+> ❌ Controller/UI setup (see `pdsp-bench_controller/` and `pdsp-bench_wui/` READMEs)
 
-## Getting Started with Cluster Manager
+---
 
-1. [Prerequisite](#prerequisite)
-1. [General Steps](#general)
-1. [Setup CloudLab Cluster](#setupCluster)
-1. [Important Notes](#importantNotes)
-1. [Next steps: Setup and Start Controller](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_controller#readme)
+## Table of Contents
 
-## Prerequisite<a name="prerequisite"></a>
-- `CloudLab` - Create CloudLab account. [CloudLab](https://www.cloudlab.us/) is well known to offer infrastructure of bare metal server to researcher. You can easily create your account for free and access all the available resource. However, PDSP-Bench is not limited to CloudLab. Researchers can use their onw infrastructure to setup and explore the capabilites of PDSP-Bench. For PDSP-Bench, we used CloudLab for experiments and evaluation due wide availability of resources. 
-- `Docker` - We are using Docker to install and manage dependencies for workload generation. You can create your docker register from [hub.docker.com](https://hub.docker.com/).
+- [What CloudLab Provides](#what-cloudlab-provides)
+- [Prerequisites](#prerequisites)
+- [Create a CloudLab Profile](#create-a-cloudlab-profile)
+- [Instantiate a Cluster](#instantiate-a-cluster)
+- [Node Roles and Services](#node-roles-and-services)
+- [Essential Setup Scripts](#essential-setup-scripts)
+- [Verify Setup on the Nodes](#verify-setup-on-the-nodes)
+- [Ports](#ports)
+- [Troubleshooting](#troubleshooting)
+- [Next Steps](#next-steps)
 
-## General steps: Cluster Configuration using CloudLab<a name="general"></a> 
+---
 
-- After creating your account on CloudLab, [pdsp-bench_Cloud_setup](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_Cloud_setup#readme) can be used to begin the cluster setup process. It includes all necessary configuration files and profiles to configure the cloud environment. The experiment profile can be created using CloudLab which can be linked to a corresponding profile [pdsp-bench_Cloud_setup](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_Cloud_setup#readme). CloudLab utilizes this link to clone the setup files from GitLab/GitHub into the newly created profile. The entire process is streamlined to ensure minimal user intervention and a quick transition from setup to execution. 
+## What CloudLab Provides
 
-<h1 align="center">
-<img src="../reference_images/PDSP-Bench_WUI_screenshots/cloudlab_setup.png" alt="CloudLab setup steps" width="500"/>
-</h1>
+CloudLab is a research testbed that provides **bare-metal servers** for building isolated clusters (“experiments”). PDSP-Bench uses CloudLab to:
+- provision a multi-node cluster (e.g., 4–10 nodes),
+- prepare each node with required dependencies,
+- ensure foundational services (Kafka, ZooKeeper, monitoring) can run reliably,
+- support benchmarking of **Flink** and **Storm** using PDSP-Bench orchestration (controller + UI).
 
-As shown in the figure , the setup process unfolds as follows. 
+---
 
-1. **Repository Cloning:** CloudLab automatically clones the setup files from the specified repository into a new profile that has been designated by the user.
+## Prerequisites
 
-2. **Profile Configuration and Instantiation:**  When initiating a cluster for experiment setup, CloudLab prompts the user to specify the desired number of nodes and select the type of hardware for each node. This interaction ensures that the hardware preferences of users are accurately captured and applied.
+### CloudLab Account
+- Create an account at: https://www.cloudlab.us/
+- Ensure your **default shell** is set to `bash` in CloudLab user settings (important for hostname handling and scripts).
 
-3. **Cluster Deployment and Service Initialization:** After the user finalizes their choices, CloudLab proceeds to deploy a cluster consisting of the specified number of nodes, each configured with the chosen hardware types. During this phase, CloudLab also replicates all files from the GitLab repository across every node in the cluster. Following the successful distribution of files, CloudLab executes installation shell scripts on each node. These scripts are crucial for setting up the necessary environment and services on the nodes. Once the installation scripts have successfully run and all services are started, the cluster is fully operational and ready to perform benchmarking tasks.
+### SSH Access (Required)
+PDSP-Bench requires **password-less SSH** from the machine running the backend/controller to CloudLab nodes.
 
-### Essential setup scripts
+1. Ensure you have an SSH key locally (typical default: `~/.ssh/id_rsa.pub`).
+2. Add the public key in CloudLab: **Manage SSH Keys**.
+3. Test SSH access to a CloudLab node (should **not** ask for password):
+   ```bash
+   ssh <cloudlab_user>@<node_fqdn>
 
-* **Profile.py** - This Python script outlines the cluster specifications for instantiation. It enables customization of the cluster setup by allowing user inputs for hardware selection, the number of nodes, and other parameters. The script also specifies the sequence of scripts to execute on the newly provisioned nodes, such as Preconditioning.sh followed by Install_all_tools.sh.
+### Recommended Hardware / OS
 
-* **Preconditioning.sh:** This script is responsible for setting up the initial environment on the nodes. It creates the necessary folder structure, and installs Java, Python, and their related dependencies. 
+- Choose a supported node type (commonly m510 works well).
 
-* **Install_all_tools.sh:** This script installs essential tools on the Master Node, including `Flink`, `Kafka`, `Grafana`, and `Prometheus`. It also handles the copying of the JAR file, which contains the Flink jobs and Data Producer, to the Master Node.
+- Use the OS image defined by the profile (commonly Ubuntu 22.04/20.04 depending on your profile version).
 
-* **Download_dataset.sh:**  Due to CloudLab's restrictions on the size of the repository that can be cloned into a CloudLab profile, datasets are not included in the initial cloud setup module. Instead, the data is hosted on `Kaggle`, and this script contains commands to download the dataset directly from Kaggle to the Master Node.
+## Create a CloudLab Profile
 
-## Setup CloudLab Cluster<a name="setupCluster"></a> 
+PDSP-Bench uses a repository-based profile. CloudLab will clone the repository to each node at:
 
-- Navigate to [CloudLab](https://www.cloudlab.us/)
-- Login to the portal or create your account.
-- Create profile for your project by linking to repository [pdsp-bench_Cloud_setup](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_Cloud_setup#readme), e.g., PDSP-Bench profile.
-- Create experiment cluster by intantiating new experiment
-    - Select number of nodes
-    - Select type of hardware
-    - Give a name to the cluster (optional)
-    - Finally, instantiate the cluster
-- Wait for the startup services to be run in all the nodes of the cluster. 
-- Shell into the node 0 and find out the hostname by typing ```hostname ``` on the terminal.
-- The other nodes have the similar hostname except the number followed after "node". ```node0.xxxxx.xxxx, node1.xxxx.xxxx, node2.xxxx.xxxx```
+- `/local/repository`
+
+### Option A — Use This Repository Directly (Public)
+
+1. Upload this CloudLab profile folder to a repository (recommended separate repo for profile):
+
+`dsp_cloudlab_profile/` (or your equivalent CloudLab profile directory)
+
+2. In CloudLab, create a new profile from that repository.
+
+3. CloudLab requires one of the following at the top-level of the repo:
+
+`profile.py (geni-lib)` or
+
+`profile.rspec`
+
+### Option B — Keep the Repo Private
+
+If the profile repository is private, configure CloudLab access using a supported token-based method (e.g., GitLab access token) so CloudLab can clone it.
+
+> Tip: If you update your repository later, use the profile Update button in CloudLab (Edit Profile page) to refresh branches/tags and update cached content.
+
+## Instantiate a Cluster
+
+1. Go to CloudLab and select your profile.
+2. Create a new experiment (instantiate the profile).
+3. Choose:
+    - Number of nodes (example: 6)
+    - Hardware type (example: m510)
+
+4. Start the experiment.
+5. Wait until the cluster is ready and all startup services have finished.
+6. Open a shell on node0 and check:
+
+    ```bash
+    hostname
+
+###  Hostname Patterns
+
+Other nodes typically share the same suffix; only the prefix changes:
+
+- `node0.<exp>.<site>.cloudlab.us`
+- `node1.<exp>.<site>.cloudlab.us`
+- `node2.<exp>.<site>.cloudlab.us`
+- ...
+
+You will use these hostnames later in PDSP-Bench UI under Explore Nodes.
+
+## Node Roles and Services
+
+PDSP-Bench assumes the first node (`node0`) acts as the main node for cluster-level services and dashboards. Other nodes act as workers.
+
+### Shared Foundation Services (All Nodes)
+
+- baseline tools + runtime dependencies
+- dataset directories and repo clone
+- monitoring agent (Node Exporter, if enabled in your profile/scripts)
+
+### Kafka + ZooKeeper Cluster (All Nodes)
+
+This setup extends PDSP-Bench to form Kafka and ZooKeeper clusters across all nodes, supporting higher input rates and improved stability for multi-node experiments.
+
+### Flink Cluster (Deployed later by PDSP-Bench)
+
+- `node0:` JobManager
+- `node1..n:` TaskManagers
+
+### Storm Cluster (Deployed later by PDSP-Bench)
+
+- `node0:` Nimbus + Storm UI (and typically a ZooKeeper endpoint)
+- `node1..n:` Supervisors
+
+> Important
+The CloudLab profile prepares dependencies and service scaffolding. Actual Flink/Storm cluster deployment and job execution is performed by PDSP-Bench (controller/playbooks) when you create a cluster in the UI.
+
+## Essential Setup Scripts
+
+Your CloudLab profile typically orchestrates the following scripts (names may differ slightly depending on your repository layout):
+
+`profile.py`
+
+- Defines the cluster topology:
+    - number of nodes (configurable at instantiation)
+    - node types / disk images
+- Defines Execute Services that run after nodes clone the repository.
+
+`preconditioning.sh`
+
+- Creates directory structure and base environment
+- Installs core dependencies (commonly):
+    - Java / Python tooling
+    - system packages required by playbooks and collectors
+
+`install_all_tools.sh`
+
+Installs and prepares services/tools used during benchmarking, including:
+- Kafka (multi-node cluster support)
+- ZooKeeper (multi-node cluster support)
+- Monitoring stack prerequisites (Prometheus/Grafana and/or exporters)
+- Dependencies needed for both Flink and Storm runtime deployments
+
+`download_dataset.sh (optional)`
+
+- Downloads datasets (e.g., from Kaggle) because CloudLab limits repo size.
+- If Kaggle rate limits occur, see troubleshooting.
+
+## Verify Setup on the Nodes
+
+After the experiment is fully ready (CloudLab shows it as Ready and startup services finished), verify on node0:
+
+ 1. Repository clone exists
+
+    ```
+    ls -la /local/repository
+    ```
+
+ 2. Basic networking between nodes
+
+From node0, ping another node:
+    ```
+    ping -c 2 node1
+    ```
+
+ 3. Check installed tool versions (examples)
+
+    ```
+    java -version
+    python3 --version
+    ```
+
+ 4. Check that background services (if started by profile) are running
+    
+    Depending on your profile, some services may be started immediately. Use:
+
+    ```
+        ps aux | egrep -i "kafka|zookeeper|prometheus|grafana|node_exporter|storm|flink" | head
+    ```   
 
 
-## Important notes for repository-based profiles set up<a name="importantNotes"></a>
+> Note: Flink/Storm processes may not be running yet if you deploy them later via PDSP-Bench UI. That is expected.
 
-* Your profile needs to be **publicly readable** so that we can pull from your
-repository without needing credentials. If you want to use it privately then you can also use your **Gitlab access token** to access make profile readable and pull from your repository.
+## Ports
 
-* Your repository must contain a file called `profile.py` (a geni-lib script) **or** `profile.rspec` (an rspec) in the top level directory. Your topology will be loaded from that file. Please place the source file in the toplevel directory.
+Most dashboards/services are hosted on the main node (node0) of a PDSP-Bench cluster.
 
-* When you instantiate an experiment based on your profile, we will clone your repository to each of your experimental nodes in the `/local/repository` directory, and set it to match whatever branch or tag you have choosen to instantiate. You will not be able to push to your repository of course, until you install the necessary credentials on your nodes.
+Common ports:
 
-* You will be able to instantiate an experiment from any branch (HEAD) or tag in your repository; Cloudlab maintains a cache of your branches and tags and lets you select one when you start your experiment. (See below for information about telling Cloudlab to update its cache)
+- 8086 — Apache Flink Dashboard
+- 8080 — Apache Storm UI
+- 3000 — Grafana
+- 9090 — Prometheus
 
-* *Execute* services run **after** the nodes have cloned your repository, so you may refer to the clone (in `/local/repository`) from your services. See `profile.py` in this repository for an example of how to run a program from your repository.
+Example:
+If your main node is
+`node0.bob-123456.maki-test-pg0.utah.cloudlab.us`, then:
 
-* Place anything you like in your repository, with the caveat that a giant repository (including, say, the linux source code), will take a long time to clone to each of your nodes. You might also get a message from Cloudlab staff asking about it.
+Flink Dashboard: `http://node0.bob-123456.maki-test-pg0.utah.cloudlab.us:8086`
 
-### Using the same repository for multiple profiles:
+Storm UI: `http://node0.bob-123456.maki-test-pg0.utah.cloudlab.us:8080`
 
-Often it is convenient to point multiple profiles at the same repository. This is fine to do, although each profile would run the same script. Sometimes this is what you want to do, but often you would like different profiles to run a different scripts. To do this, create a subdirectory called `profiles` at the top level of the repository and move your `profile.py` or `profile.rspec` into the new sub directory.
+Grafana: `http://node0.bob-123456.maki-test-pg0.utah.cloudlab.us:3000`
 
-If you want a specfic profile (say, `mynewprofile`) to run a different script then your other profile (say, `myoldprofile`), rename `profile.py` to `myoldprofile.py` and add a new script called `mynewprofile.py`.  When you instantiate or edit `mynewprofile`, the `mynewprofile.py` script will be used.
+Prometheus: `http://node0.bob-123456.maki-test-pg0.utah.cloudlab.us:9090`
 
-### Updating your profile after updates to your repository
+## Troubleshooting
 
-When you change your repository you will typically want your Cloudlab profile to be updated as well, especially if you have changed `profile.py` or `profile.rspec`. But you might also have added a new branch or tag that you would like to instantiate. Before you can do that, you need to tell Cloudlab to update your profile. There are two ways to do that, one is a manual method and the other is an automated method:
+### Cluster Creation / Startup Services Fail
 
-#### Manual method
+- Check the CloudLab Execution Log for your experiment.
+- Most common failures are missing downloads or transient network issues.
 
-After you update your repository, return to the Cloudlab web interface, and on the `Edit Profile` page, you will see an **Update** button next to the repository URL. Click on the **Update** button, and Cloudlab will do another pull from your repository, update the list of branches and tags, and update the source code on the page if it has changed. 
+### Missing Downloads (Kafka, Storm, etc.)
 
-#### Automated method
+- Some projects do not keep all versions available forever.
+- If an archive is missing, update the download URL in:
+    - CloudLab profile scripts (e.g., `install_all_tools.sh`)
+    - Ansible tasks used by PDSP-Bench playbooks (if applicable)
 
-Many public Git repositories like [github.com](https://git-scm.com/), [bitbucket.org](https://bitbucket.org), and others based on [GitLab](https://www.gitlab.com/), support *push* 
-[webhooks](https://developer.github.com/webhooks/), which is a mechanism to notify a third party that your repository has changed, either by a push to the repository or by the web interface.
+### Kaggle Download Fails (Rate Limit)
 
-Once you setup a push webhook, each commit to your repository will cause Cloudlab to fetch from your repository, updating your profile to reflect the current HEAD of your master branch. Branches and tags are updated as well. When complete, we will send you an email confirmation so you know that your profile has been updated. 
+- Reload nodes in small batches (CloudLab) and wait for setup to finish.
+- Consider hosting datasets in an alternative location if failures are frequent.
 
-Setting up a webhook is relatively straightforward. First, on the `Edit Profile` page for your profile, copy the **Push URL** from the Repository Info panel in the lower left. Here are instructions for several popular Git hosting services: 
+### SSH Connection to Nodes Not Working
 
-* **github.com**: Go to your repository and click on the **Settings** option in the upper right, then click on **Webhooks**, then click on the **Add Webhook** menu option. Paste your push URL into the **Payload URL** form field, leave everything else as is, and click on the **Add Webhook** button at the bottom of the form.
+- Ensure your SSH public key is added in CloudLab.
+- If you added a new key recently:
+    - existing nodes may need reload or the experiment recreated.
 
-* **gitlab**: Go to your repository and click on **Settings** in the upper right, then click on the **Integrations** menu option.  Paste your push URL into the **URL** form field, leave everything else as is, and click on the **Add Webhook** button at the bottom of the form.
+### Flink TaskManagers Don’t Join JobManager (Later, after PDSP-Bench deploys)
 
-* **bitbucket.org**: Go to your repository and click on **Settings** in the lower left, then click on the **Webhooks** menu option, then click on the **Add Webhook** button. Give your new webhook a **Title** and paste your push URL into the **URL** form field, leave everything else as is, and click on the **Save** button at the bottom of the form.
+- Check JobManager logs for hostname binding issues.
+- Ensure CloudLab user default shell is `bash` (prevents `$HOST` issues in some cases).
+- If you see FQDN problems, use explicit hostname binding in startup commands.
+
+### Storm Metrics / Exporter Issues (Later, after PDSP-Bench deploys)
+-  Storm metrics collection may rely on exporter scripts.
+- If metrics are missing, restart the exporter process on `node0` (if used in your setup).
+- Keep in mind: Storm exports some metrics at coarse granularity (often ~1 min), limiting short-run observability.
+
+### Grafana Crashes / Charts Missing
+
+Grafana can be unstable on some nodes/setups. If it stops:
+
+- restart it manually (path depends on your installation)
+- use `tmux` to keep it running
+
+## Next Steps
+
+After CloudLab nodes are provisioned and ready:
+1. Set up and start the PDSP-Bench Controller
+    See: pdsp-bench_controller/README.md
+2. Set up and start the PDSP-Bench Web UI
+    See: pdsp-bench_wui/README.md
+3. In the UI:
+    - add your CloudLab nodes in **Explore Nodes**
+    - go to **Create Cluster**
+    - select the **SUT (Flink or Storm)**
+    - deploy and execute jobs/topologies

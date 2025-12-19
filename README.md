@@ -1,7 +1,6 @@
-<h1 align="center">
-  <img src="reference_images/pdspbench_logo-1.png" alt="PDSP-Bench Logo" width="300"/>
-  <br>Welcome to PDSP-Bench - Code and Documentation
-</h1>
+<h2 align="center">
+  Experiment, Analysis, and Benchmark on PDSP-Bench for DSPS
+</h2>
 
 PDSP-Bench is a benchmarking system for **parallel and distributed stream processing** on **heterogeneous hardware configurations**. It supports deploying and benchmarking different **Stream Processing Engines (SPEs)** as the **System Under Test (SUT)**—including **Apache Flink** and **Apache Storm**—using real-world and synthetic streaming applications. PDSP-Bench collects and visualizes performance metrics such as **end-to-end latency**, **throughput**, and **resource utilization**, and exports experiment artifacts for offline analysis and ML-based modeling.
 
