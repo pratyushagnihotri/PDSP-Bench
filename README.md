@@ -3,7 +3,8 @@
   <br>Welcome to PDSP-Bench - Code and Documentation
 </h1>
 
-PDSP-Bench, a novel benchmarking system specifically designed for benchmarking parallel and distributed stream processing on heterogeneous hardware configurations.
+PDSP-Bench is a benchmarking system for **parallel and distributed stream processing** on **heterogeneous hardware configurations**. It supports deploying and benchmarking different **Stream Processing Engines (SPEs)** as the **System Under Test (SUT)**—including **Apache Flink** and **Apache Storm**—using real-world and synthetic streaming applications. PDSP-Bench collects and visualizes performance metrics such as **end-to-end latency**, **throughput**, and **resource utilization**, and exports experiment artifacts for offline analysis and ML-based modeling.
+
 
 ## Citation
 
@@ -33,34 +34,125 @@ numpages    =     {4},
 
 <h3>Dedicated Repository for Paper Submission:</h3>
 
-This repository is created to support our paper submission titled **PDSP-Bench: A Benchmarking System for Parallel and Distributed Stream Processing**, showcasing the capabilities of PDSP-Bench.
+This repository supports our paper submission  **Benchmarking Parallel Stream Processing in Heterogeneous Environments: An Empirical Analysis with PDSP-Bench** and contains the main components required to provision infrastructure, deploy stream processing engines, run benchmarking experiments, and analyze results.
 
-<h3> Exploring PDSP-Bench's Key Components:</h3>
+## Key Concepts
 
-- [pdsp-bench_Cloud_setup:](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_Cloud_setup#readme) The main instructions to setup CloudLab environment for benchmarking using PDSP-Bench. It provides scripts to install dependecies and setup CloudLab resources for performance benchmarking.
+- SUT (System Under Test): The stream processing engine being benchmarked (e.g., Flink, Storm).
+- PQP (Parallel Query Plan): A parallelization configuration for an application/topology (e.g., per-operator DoP vector).
+- Workload Configuration: Stream parameters such as event rate, query parameters, execution duration, iterations, etc.
+- Heterogeneous Hardware: Clusters where nodes differ in CPU, memory, storage, or accelerators.
 
-- [pdsp-bench_controller:](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_controller#readme) Controller is the backend of PDSP-Bench benchmarking system. It offers API endpoints to communicate with *pdsp-bench_wui* and automate various tasks like creating the cluster, providing jobs to Flink, saving the cluster and user information on sqlite DB.
+## Supported Stream Processing Engines (SUTs)
 
+PDSP-Bench is designed to benchmark multiple SPEs under a unified workflow.
 
-- [pdsp-bench_wui:](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_wui#readme) Web user interface of PDSP-Bench system to enable communication with *controller* take user input for resource provisioning on CloudLab, workload generation and performance analysis and visualization.
+### Apache Flink
 
+- **Cluster roles:** JobManager + TaskManagers
 
-- [pdsp-bench_experiment_data](https://github.com/pratyushagnihotri/pdsp-bench_experiment_data) Selected set of sample data of real-world and synthetic application collected for parallel query plans during performance benchmarking. 
+- **Parallelism mapping:** PQP/DoP settings map to Flink operator/subtask parallelism
 
+- **Experiment lifecycle:** deploy cluster → submit job → run for duration → collect metrics → analyze/export
 
-## PDSP-Bench Description
-PDSP-Bench allows to benchmarkk Distributed Stream Processing (DSP) systems. It offers to deploy choice of DSP systems such as SUT e.g., Apache Flink which can be benchmarked using 14 real-world and 9 synthetic applications.  By interacting to the `web user interface` ([pdsp-bench_wui:](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_wui#readme)), you can execute different paralle query plans (PQP) related to these real-world and synthetic applications under varying workload such as data stream and query parameters and resource configurations. After query execution, you can visualize the performance of each query in real-time such as end to end latency, throughput, resource utilization  or visualize historical performance data of different query execution to compare performances. In addition, PDSP-Bench offers to collect these data to be used by for training learned component of DSP systems. [pdsp-bench_ml_models:](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_ml_models#readme) offers performance or cost prediction using different learned cost models which were training on data collected from PDSP-Bench.
+### Apache Storm
 
-## Overview of Step-wise Operations in PDSP-Bench
-1. Create `CloudLab` account and setup cluster in `CloudLab` using [pdsp-bench_Cloud_setup](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_Cloud_setup#readme).
-1. Make sure clone `PDSPBench` in your home folder or Create a folder `PDSPBench` in your home folder directory unzip downloaded files and copy subfoloder in `PDSPBench` e.g., `~\PDSPBench\dsp_be`
-1. Setup and Start [pdsp-bench_controller](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_controller#readme)
-1. Setup and Start [pdsp-bench_wui](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_wui#readme)
-1. In frontend, go to `Explore Node` tab put `hostname` from all `CloudLab` nodes in the frontend.
-1. Go to `Create Cluster` tab and Create distributed environment by creating and deploying Apache Flink on cluster nodes. You can decided how many node you need for Flink while creating clusters.
-1. After successful deployment of Flink and running cluster, you can select cluster and execute query specific real-world or synthetic applications by defing query specific parameters like, event rate, parallelism, execution time, number of iteration, as well as enumeration strategy.
-1. During the execution, you can visualize the real-time performance or
-1. Wait for the job to run for the specified duration then anaylze and visualize the historical performance metrics of different query from same or different applications. 
-1. Query execution specific configurations and metrics is collected automatically and dowloaded as JSON files and graph representation after the job has run for the specified time. These details are also stored in MongoDB and SQLite database.
+- **Cluster roles:** ZooKeeper + Nimbus + Supervisors
+
+- **Parallelism mapping:** PQP/DoP settings map to spout/bolt parallelism (executors/tasks)
+
+- **Experiment lifecycle:** deploy cluster → submit topology → run for duration → collect metrics → analyze/export
+
+## Workloads
+
+PDSP-Bench supports benchmarking using:
+
+- 14 real-world applications
+
+Applications can be executed under different PQPs, workload settings, and resource configurations.
+
+## Repository Structure
+
+- [pdsp-bench_Cloud_setup:](https://github.com/pratyushagnihotri/PDSP-Bench/tree/main/pdsp-bench_Cloud_setup#readme)
+CloudLab setup instructions and scripts to provision resources and install dependencies.
+
+- [pdsp-bench_controller:](https://github.com/pratyushagnihotri/PDSP-Bench/tree/main/pdsp-bench_controller#readme)
+  - Backend controller. Provides APIs to automate:
+
+  - cluster creation and SUT deployment (Flink/Storm)
+
+  - job/topology submission and experiment lifecycle
+
+  - persistence of metadata and results (e.g., SQLite/MongoDB depending on configuration)
+
+- [pdsp-bench_wui:](https://github.com/pratyushagnihotri/PDSP-Bench/tree/main/pdsp-bench_wui#readme)
+Web UI for provisioning inputs, workload configuration, experiment execution, and visualization.
+
+- [pdsp-bench_benchmark_data](https://github.com/pratyushagnihotri/PDSP-Bench/tree/main/pdsp-bench_benchmark_data)
+Selected sample experiment outputs (real-world and synthetic applications).
 
 > Note: Detailed steps about each component of PDSP-Bench is provided in their respective README.md files.
+
+## PDSP-Bench Workflow (High-Level)
+
+1. Provision CloudLab resources (cluster nodes).
+1. Add node hostnames in the Web UI.
+1. Create a cluster and deploy an SUT (Flink or Storm).
+1. Select an application (real-world or synthetic).
+1. Configure PQP/parallelism and workload parameters (event rate, duration, iterations, enumeration strategy).
+1. Run the experiment.
+1. Monitor real-time performance metrics.
+1. Analyze historical results and export artifacts for offline analysis or ML.
+
+## Step-by-Step Operations
+
+>  Detailed instructions for each component are provided in the component-level README files.
+1. Create a **CloudLab** account and set up a cluster using [pdsp-bench_Cloud_setup/](https://github.com/pratyushagnihotri/PDSP-Bench/tree/main/pdsp-bench_Cloud_setup#readme).
+2. Clone the repository into your home directory.
+3. Set up and start [pdsp-bench_controller/:](https://github.com/pratyushagnihotri/PDSP-Bench/tree/main/pdsp-bench_controller#readme).
+4. Set up and start [pdsp-bench_wui/](https://github.com/pratyushagnihotri/PDSP-Bench/tree/main/pdsp-bench_wui#readme).
+5. In the WUI, open Explore Node and add hostnames from all CloudLab nodes.
+6. Go to **Create Cluster** and select:
+    - number of nodes
+    - node allocation / roles
+    - SUT: **Apache Flink** or **Apache Storm**
+7. Deploy the selected SUT:
+    - Flink: JobManager + TaskManagers
+    - Storm: ZooKeeper + Nimbus + Supervisors
+8. Select the cluster and configure the experiment:
+    - application/topology
+    - event rate
+    - parallelism / PQP / DoP vector
+    - execution time
+    - iterations
+    - enumeration strategy
+9. Run the experiment and monitor:
+    - end-to-end latency
+    - throughput
+    - resource utilization
+10. Download/export results:
+    - configurations and metrics as JSON
+    - optional graph representation artifacts
+    - persisted records in configured databases (e.g., MongoDB/SQLite)
+
+## Outputs and Artifacts
+
+Each experiment run typically produces:
+
+- run metadata (SUT, nodes, versions, workload parameters, PQP settings)
+
+- time-series performance metrics (throughput, latency, utilization)
+
+- exported JSON artifacts for offline analysis
+
+- optional PQP/topology graph representations
+
+- persisted results in configured databases (depending on configuration)
+
+## Troubleshooting
+
+- **Deployment succeeds but jobs/topologies fail:** verify all required services are running on the correct nodes (Flink JM/TM; Storm ZK/Nimbus/Supervisors).
+
+- **Throughput is capped:** confirm PQP/parallelism does not exceed available slots/executors and verify the source generator configuration.
+
+- **Metrics missing in UI:** confirm controller database connectivity and metric collectors are enabled.
