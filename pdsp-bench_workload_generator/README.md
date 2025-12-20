@@ -19,7 +19,7 @@ Based on operator semantics and communication patterns, we assign each workload 
 ## 1) Lightweight Stateless / Group-by Pipelines
 
 ### Word Count (WC)
-![Word Count (WC)](reference_images/wc.png)
+![Word Count (WC)]<img src="reference_images/wc.png" alt="Word Count" width="500"/>
 
 **Area:** Text Processing  
 Processes a text stream, tokenizes sentences into words, and counts occurrences of each word in real-time using a keyed aggregation.  
