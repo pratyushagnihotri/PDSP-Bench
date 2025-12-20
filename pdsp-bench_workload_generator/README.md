@@ -1,137 +1,161 @@
-<h1> PDSPBench - Parallel Query Plan Generator (Real-world) </h1>
+# PDSP-Bench Workloads (Real-World)
 
-PDSP-Bench workload generator offers to generate parallel query plans for 14 real-world applications and 9 synthetic applications. We are describing 
+PDSP-Bench includes **14 real-world streaming workloads** inspired by established DSPS/database benchmarks and prior studies (e.g., **Linear Road**, **Smart Grid**, **Ads Analytics**, **Click Analytics**). The suite is designed to cover major performance indicators such as **CPU**, **network**, and **memory/state** behavior that react differently to changes in **Degree of Parallelism (DoP)**.
 
-## Description of Applications 
+This diversity is important for evaluating **scaling efficiency**, because changing DoP can shift bottlenecks between CPU saturation, network bandwidth, and state/data redistribution overheads.
 
-| **Applications**                                                                 | **Area**                                 | **Description**                                                                                                                                                                                                                                                                                                                                                 |
-|----------------------------------------------------------------------------------|------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Word Count (WC)                                        | Text Processing                          | processes a text stream, tokenizes sentences into words, and counts the occurrences of each word in real-time using a key-based aggregation.                                                                                                                                                                                                                    |
-| Machine Outlier (MO)                                | Network Monitoring                       | detects anomalies in machine usage data across a network by processing usage stream using _BFPRT algorithm to identify outliers based on statistical medians.                                                                                                                                                                           |
-| Linear Road (LR)                                        | Traffic Management                       | processes vehicle-generated location data through four queries: _toll notification_, _accident notification_, _daily expenditure_, and _total travel time_, to calculate charges or detect incidents.                                                                                                                                                          |
-| Logs Processing (LP)                         | Web Analytics                            | processes log data from HTTP Web Servers to extract insights using two main queries via the Volume Counter and Status Counter operators: one counts the number of visits within specified intervals, and the other tallies status codes.                                                                                                                         |
-| Google Cloud Monitoring (GCM)                    | Cloud Infrastructure                     | analyzes cloud computing data by calculating average CPU usage over time, either grouped by job or category, with results processed through sliding windows and specific grouping operators.                                                                                                                                                                     |
-| TPC-H (TPCH)                                               | E-commerce                               | processes a stream of order events to emit high-priority orders, utilizing operators to structure, filter, and calculate the occurrence sums of order priorities within specified time windows.                                                                                                                                                                 |
-| Bargain Index (BI)                                           | Finance                                  | analyzes stock quote streams to identify potential bargain opportunities by calculating the price-to-volume ratio and comparing it against a specific threshold using a VWAP Calculator and Bargain Index Calculator, ultimately emitting quotes that surpass the threshold as potential bargains.                                                                 |
-| Sentiment Analysis (SA)                     | Social Network                           | determines the emotional tone of tweets by assessing sentiment using the TwitterAnalyzer and SentimentClassifier operators, which apply Basic or LingPipe classifiers to score and label the tweets.                                                                                                                                                           |
-| Smart Grid (SG)                                         | Sensor Network                           | analyzes smart home energy usage through two queries that calculate global and local average loads using sliding window.                                                                                                                                                                                                                                        |
-| Click Analytics (CA)                                   | Web Analytics                            | analyzes user interactions with online content via two queries: first groups click events by Client ID to calculate repeat visits and total visits per URL, and the second identifies geographical origins of clicks using a Geo-IP database.                                                                                                                  |
-| Spike Detection (SD)                                  | Sensor Network                           | processes sensor data streams from a production plant to detect sudden temperature spikes by calculating average temperatures over sliding windows, and identify spikes exceeding 3% of the average.                                                                                                                                                           |
-| Trending Topics (TT)                      | Social Network                           | processes stream of tweets using the TwitterParser and TopicExtractor operators to identify trending topics on Twitter based on aggregated popular topics based on predefined thresholds.                                                                                                                                                                        |
-| Traffic Monitoring (TM)                                         | Sensor Network                           | processes streaming vehicle data using TrafficEventParser and RoadMatcher operators to match vehicle locations to road segments then calculates the average speed per segment using the AverageSpeedCalculator.                                                                                                                                                |
-| Ad Analytics (AD)                                          | Advertising                              | processes real-time data on user engagement with digital ads, using separate pipelines to parse clicks and impressions, calculate their counts within time windows, and compute the click-through rate (CTR) with a rolling CTR operator.                                                                                                                       |
-| Synthetic Queries                                                                | Standard DSP Queries                     | designed to assess various workloads by managing different data streams and query structures to increase data distribution complexity. It utilizes data tuples of various types, supporting specific operations to facilitate realistic scenarios through synthetic query structures ranging from simple linear to complex multi-join configurations. Key operations include diverse filters, window aggregation and join, enhancing query complexity and data flow parallelism. |
+Based on operator semantics and communication patterns, we assign each workload a primary bottleneck class:
 
+1. **CPU-bound pipelines** (compute saturation and thread contention)  
+2. **Memory-bound / stateful workloads** (state access, memory pressure, coordination)  
+3. **Network-bound / shuffle- / join-intensive pipelines** (repartitioning fan-out and exchange overhead)  
+4. **Lightweight stateless / group-by pipelines** (coordination overhead and saturation)  
+5. **Mixed operator / UDF-rich DAGs** (compound bottlenecks and bottleneck shifts)
 
-### General Arguments for Real-world Applications
+---
 
-To execute this query you need the following parameters:
-  - ```--parallelism```: The parallelism level
-  - ```--mode```: Takes two values, either 'file' or 'kafka'. Depicts the source and input type. For 'file' the lines of the text file will be read, processed and the results will be written in a file. Otherwise, for 'kafka' the data arriving in a Kafka topic will be used as the input stream and after it has been processed, the results will be written in another Kafka topic.
-  - ```--input```: Depicts the input file (in the case when 'mode'=='file') or the Kafka topic that will be used as input (in the case when 'mode'=='kafka').
-  - ```--output```: Depicts the output folder (in the case when 'mode'=='file') or the Kafka topic that will be used as output (in the case when 'mode'=='kafka').
-  - ```--kafka-server```: Depicts the address of the Kafka instance in the case when 'mode'=='kafka'. This parameter is not necessary if 'mode'=='file'.
-  - ```--numTopos```: Defines how much queries should run per type.
-  - ```--lateness```: This query uses event sliding window, the time, in seconds, that the query will wait for results coming out of order is needed. 
+## Workload Taxonomy
 
-  A sample command to start this query is the following:
-  ```
-  ./bin/flink run -c WordCount.WordCount <path to the compiled Jar file of this application> --parallelism 2 --mode kafka --input inputTopic --output outputTopic --kafka-server localhost:9092 -- enumerationStrategy --random --numTopos 3000
-  ```
+## 1) Lightweight Stateless / Group-by Pipelines
 
- A sample command to start the first query of SmartGrid with a sliding window size of 5 seconds, window slide of 1 second and lateness of 10 seconds is the following:
-  ```
-  ./bin/flink run -c SmartGrid.SmartGrid <path to the compiled Jar file of this application> --parallelism 2 --mode kafka --input inputTopic --output outputTopic --kafka-server localhost:9092 --query 1 --size 5 --slide 1 --lateness 10 -- enumerationStrategy --random --numTopos 3000
-  ```
-  Another example Command
-  ```
-  ./bin/flink run -c com.kom.dsp.smartgrid.SmartGridJob /home/legion/Desktop/park/dsp_jobs/target/dsp_jobs-1.0-SNAPSHOT.jar -parallelism [1] -size 100 -slide 1 -mode kafka -input SmartGridIn -output SmartGridOut -query 1 -kafka-server localhost:9092 -- enumerationStrategy --random --numTopos 3000
-  ```
+### Word Count (WC)
+![Word Count (WC)](reference_images/wc.png)
 
-### General Arguments Synthetic Query Applications
+**Area:** Text Processing  
+Processes a text stream, tokenizes sentences into words, and counts occurrences of each word in real-time using a keyed aggregation.  
+**Why this class:** lightweight per-tuple processing with group-by aggregation; performance is sensitive to coordination and key distribution.
 
-  The SyntheticQueryGenerator consists of 9 templates. Sample example for arguments to be passed in queries:
-  
-  #### First template
-  The following parameters are required to run a query of the first template:
-  - ```--template```: Defines the template that will be used. Takes one of the following values 'template_1', 'template_2' or 'template_3'. For the first template it must be 'template_1'.
-  - ```--firstFilter```: Is a boolean defining if the first filter should be applied or not.
-  - ```--groupBy```: Is a boolean defining if a groupBy operator should be applied or not.
-  - ```--secondFilter```: Is a boolean defining if the second filter should be applied or not.
-  - ```--windowType```: Defines the window type to be used. Takes one of the following values 'duration' or 'count'.
-  - ```--windowSize```: Defines the size of the window. If 'windowType'=='duration' then the window size is given in seconds.
-  - ```--windowSlide```: Defines the slide of the window. If 'windowType'=='duration' then the window slide is given in seconds.
-  - ```--integerRange```: Defines the maximal number of integers in the data tuple. It randomly chooses the number of integers between 1 and 'integerRange' (inclusive).
-  - ```--doubleRange```: Defines the maximal number of doubles in the data tuple. It randomly chooses the number of doubles between 1 and 'doubleRange' (inclusive).
-  - ```--stringRange```: Defines the maximal number of strings in the data tuple. It randomly chooses the number of strings between 1 and 'stringRange' (inclusive).
-  - ```--eventRate```: The rate (events/s) at which the data tuples are produced.
-  - ```--queryDuration```: Defines the run time of the query (in seconds). After that time has passed, the job is cancelled on Flink. Provide the value '-1' if you want the query to run indefinitely.
-  - ```--operatorChaining```: Is a boolean enabling (true) or disabling (false) the operator chaining during the execution in Flink.
-  - ```--parallelism```: The parallelism level
-  - ```enumerationStrategy```: Defines the enumeration strategy to be used. Can be `RANDOM`, `EXHAUSTIV`, `RULEBASED`, `MINAVGMAX`, `INCREASING` or `PARAMETERBASED`. 
+---
 
-  A sample command to start a query of the first template is the following:
-  ```
-  ./bin/flink run -c SyntheticQueryGenerator.SyntheticDataGenerator <path to the compiled Jar file of this application> --template template_1 --firstFilter true --groupBy true --secondFilter true --windowType count --windowSize 7 --windowSlide 3 --integerRange 2 --doubleRange 5 --stringRange 7 --eventRate 20 --queryDuration -1 --operatorChaining true --parallelism 2 -- enumerationStrategy --random
-  ```
+## 2) CPU-Bound Pipelines
 
-  #### Second template
-  The following parameters are required to run a query of the second template:
-  - ```--template```: Defines the template that will be used. Takes one of the following values 'template_1', 'template_2' or 'template_3'. For the second template it must be 'template_2'.
-  - ```--firstFilterFirstStream```: Is a boolean defining if the first filter should be applied in the first stream or not.
-  - ```--firstFilterSecondStream```: Is a boolean defining if the first filter should be applied in the second stream or not.
-  - ```--groupBy```: Is a boolean defining if a groupBy operator should be applied or not.
-  - ```--joinWindowSize```: Defines the size of the joining window.
-  - ```--joinWindowSlide```: Defines the slide of the joining window.
-  - ```--secondFilter```: Is a boolean defining if the second filter should be applied or not.
-  - ```--integerRangeFirstStream```: Defines the maximal number of integers in the data tuple of the first stream. It randomly chooses the number of integers between 1 and 'integerRangeFirstStream' (inclusive).
-  - ```--doubleRangeFirstStream```: Defines the maximal number of doubles in the data tuple of the first stream. It randomly chooses the number of doubles between 1 and 'doubleRangeFirstStream' (inclusive).
-  - ```--stringRangeFirstStream```: Defines the maximal number of strings in the data tuple of the first stream. It randomly chooses the number of strings between 1 and 'stringRangeFirstStream' (inclusive).
-  - ```--integerRangeSecondStream```: Defines the maximal number of integers in the data tuple of the second stream. It randomly chooses the number of integers between 1 and 'integerRangeSecondStream' (inclusive).
-  - ```--doubleRangeSecondStream```: Defines the maximal number of doubles in the data tuple of the second stream. It randomly chooses the number of doubles between 1 and 'doubleRangeSecondStream' (inclusive).
-  - ```--stringRangeSecondStream```: Defines the maximal number of strings in the data tuple of the second stream. It randomly chooses the number of strings between 1 and 'stringRangeSecondStream' (inclusive).
-  - ```--eventRateFirstStream```: The rate (events/s) at which the data tuples of the first stream are produced.
-  - ```--eventRateSecondStream```: The rate (events/s) at which the data tuples of the second stream are produced.
-  - ```--queryDuration```: Defines the run time of the query (in seconds). After that time has passed, the job is cancelled on Flink. Provide the value '-1' if you want the query to run indefinitely.
-  - ```--operatorChaining```: Is a boolean enabling (true) or disabling (false) the operator chaining during the execution in Flink.
-  - ```--parallelism```: The parallelism level
-  - ```enumerationStrategy```: Defines the enumeration strategy to be used. Can be `RANDOM`, `EXHAUSTIV`, `RULEBASED`, `MINAVGMAX`, `INCREASING` or `PARAMETERBASED`. 
+### Machine Outlier (MO)
+![Machine Outlier (MO)](reference_images/mo.png)
 
-  A sample command to start a query of the second template is the following:
-  ```
-  ./bin/flink run -c SyntheticQueryGenerator.SyntheticDataGenerator <path to the compiled Jar file of this application> --template template_2 --firstFilterFirstStream true --firstFilterSecondStream true --groupBy true --joinWindowSize 7 --joinWindowSlide 3 --secondFilter true --integerRangeFirstStream 2 --doubleRangeFirstStream 5 --stringRangeFirstStream 7 --integerRangeSecondStream 5 --doubleRangeSecondStream 6 --stringRangeSecondStream 3 --eventRateFirstStream 30 --eventRateSecondStream 200 --queryDuration 120 --operatorChaining true --parallelism 2 -- enumerationStrategy --random
+**Area:** Network Monitoring  
+Detects anomalies in machine usage data by processing a usage stream using a median-based selection approach (e.g., BFPRT-style logic).  
+**Why this class:** dominated by computation per tuple/window; scaling is driven by CPU saturation and UDF cost.
 
-  ```
+---
 
-#### Third template
-  The following parameters are required to run a query of the third template:
-  - ```--template```: Defines the template that will be used. Takes one of the following values 'template_1', 'template_2' or 'template_3'. For the third template it must be 'template_3'.
-  - ```--firstFilterFirstStream```: Is a boolean defining if the first filter should be applied in the first stream or not.
-  - ```--firstFilterSecondStream```: Is a boolean defining if the first filter should be applied in the second stream or not.
-  - ```--firstFilterThirdStream```: Is a boolean defining if the first filter should be applied in the third stream or not.
-  - ```--groupBy```: Is a boolean defining if a groupBy operator should be applied or not.
-  - ```--joinWindowSize```: Defines the size of the joining window.
-  - ```--joinWindowSlide```: Defines the slide of the joining window.
-  - ```--secondFilter```: Is a boolean defining if the second filter should be applied or not.
-  - ```--integerRangeFirstStream```: Defines the maximal number of integers in the data tuple of the first stream. It randomly chooses the number of integers between 1 and 'integerRangeFirstStream' (inclusive).
-  - ```--doubleRangeFirstStream```: Defines the maximal number of doubles in the data tuple of the first stream. It randomly chooses the number of doubles between 1 and 'doubleRangeFirstStream' (inclusive).
-  - ```--stringRangeFirstStream```: Defines the maximal number of strings in the data tuple of the first stream. It randomly chooses the number of strings between 1 and 'stringRangeFirstStream' (inclusive).
-  - ```--integerRangeSecondStream```: Defines the maximal number of integers in the data tuple of the second stream. It randomly chooses the number of integers between 1 and 'integerRangeSecondStream' (inclusive).
-  - ```--doubleRangeSecondStream```: Defines the maximal number of doubles in the data tuple of the second stream. It randomly chooses the number of doubles between 1 and 'doubleRangeSecondStream' (inclusive).
-  - ```--stringRangeSecondStream```: Defines the maximal number of strings in the data tuple of the second stream. It randomly chooses the number of strings between 1 and 'stringRangeSecondStream' (inclusive).
-  - ```--integerRangeThirdStream```: Defines the maximal number of integers in the data tuple of the third stream. It randomly chooses the number of integers between 1 and 'integerRangeThirdStream' (inclusive).
-  - ```--doubleRangeThirdStream```: Defines the maximal number of doubles in the data tuple of the third stream. It randomly chooses the number of doubles between 1 and 'doubleRangeThirdStream' (inclusive).
-  - ```--stringRangeThirdStream```: Defines the maximal number of strings in the data tuple of the third stream. It randomly chooses the number of strings between 1 and 'stringRangeThirdStream' (inclusive).
-  - ```--eventRateFirstStream```: The rate (events/s) at which the data tuples of the first stream are produced.
-  - ```--eventRateSecondStream```: The rate (events/s) at which the data tuples of the second stream are produced.
-  - ```--eventRateThirdStream```: The rate (events/s) at which the data tuples of the third stream are produced.
-  - ```--queryDuration```: Defines the run time of the query (in seconds). After that time has passed, the job is cancelled on Flink. Provide the value '-1' if you want the query to run indefinitely.
-  - ```--operatorChaining```: Is a boolean enabling (true) or disabling (false) the operator chaining during the execution in Flink.
-  - ```--parallelism```: The parallelism level
-  - ```enumerationStrategy```: Defines the enumeration strategy to be used. Can be `RANDOM`, `EXHAUSTIV`, `RULEBASED`, `MINAVGMAX`, `INCREASING` or `PARAMETERBASED`. 
+## 3) Memory-Bound / Stateful Workloads
 
-  A sample command to start a query of the third template is the following:
-  ```
-  ./bin/flink run -c SyntheticQueryGenerator.SyntheticDataGenerator <path to the compiled Jar file of this application> --template template_3 --firstFilterFirstStream true --firstFilterSecondStream true --firstFilterThirdStream true --groupBy true --joinWindowSize 7 --joinWindowSlide 3 --secondFilter true --integerRangeFirstStream 2 --doubleRangeFirstStream 5 --stringRangeFirstStream 7 --integerRangeSecondStream 5 --doubleRangeSecondStream 6 --stringRangeSecondStream 3 --integerRangeThirdStream 5 --doubleRangeThirdStream 6 --stringRangeThirdStream 3 --eventRateFirstStream 30 --eventRateSecondStream 200 --eventRateThirdStream 100 --queryDuration 120 --operatorChaining true --parallelism 2 -- enumerationStrategy --random
-  ```
+### Spike Detection (SD)
+![Spike Detection (SD)](reference_images/sd.png)
 
+**Area:** Sensor Network  
+Processes sensor data streams to detect sudden temperature spikes by computing sliding-window averages and identifying deviations beyond a threshold.  
+**Why this class:** windowed aggregation maintains state; state access, memory pressure, and coordination dominate at scale.
+
+### Trending Topics (TT)
+![Trending Topics (TT)](reference_images/tt.png)
+
+**Area:** Social Network  
+Processes tweet streams to identify trending topics using parsing and aggregated popularity counts over windows with ranking/thresholding.  
+**Why this class:** windowed counts and ranking maintain state; memory/state pressure grows with cardinality and window size.
+
+### Smart Grid (SG)
+![Smart Grid (SG)](reference_images/sg.png)
+
+**Area:** Sensor Network  
+Analyzes smart-home energy usage through two queries that compute global and local loads using sliding windows.  
+**Why this class:** stateful/windowed aggregations accumulate state; memory pressure and coordination costs are primary factors.
+
+---
+
+## 4) Network-Bound / Shuffle- / Join-Intensive Pipelines
+
+### Ad Analytics (AD)
+![Ad Analytics (AD)](reference_images/ad.png)
+
+**Area:** Advertising  
+Processes click and impression streams in separate pipelines and computes windowed click-through rate (CTR).  
+**Why this class:** shuffle/exchange overhead is dominant due to repartitioning and combining streams at scale.
+
+### Bargain Index (BI)
+![Bargain Index (BI)](reference_images/bi.png)
+
+**Area:** Finance  
+Analyzes stock quote streams to identify bargains by computing VWAP-like measures and a bargain index, emitting quotes that exceed a threshold.  
+**Why this class:** high exchange volume with windowed computations; repartitioning and network overhead dominate under scale.
+
+### TPC-H (TPCH)
+![TPC-H (TPCH)](reference_images/tpch.png)
+
+**Area:** E-commerce  
+Processes order events to emit high-priority orders and aggregates order priority occurrences within time windows.  
+**Why this class:** grouping/aggregation at scale can stress repartitioning and network exchange paths.
+
+---
+
+## 5) Mixed Operator / UDF-Rich DAGs
+
+### Linear Road (LR)
+![Linear Road (LR)](reference_images/lr.png)
+
+**Area:** Traffic Management  
+Processes vehicle location streams through four queries (toll notification, accident notification, daily expenditure, total travel time) to calculate charges and detect incidents.  
+**Why this class:** multi-stage pipeline with state and repartitioning; bottlenecks can shift between CPU, state coordination, and network.
+
+### Logs Processing (LP)
+![Logs Processing (LP)](reference_images/lp.png)
+
+**Area:** Web Analytics  
+Processes HTTP server logs using two main queries: one counts visits per interval (volume counter), and another tallies status codes.  
+**Why this class:** parsing + aggregation mix; bottleneck can shift between CPU parsing and coordination/state overhead.
+
+### Google Cloud Monitoring (GCM)
+![Google Cloud Monitoring (GCM)](reference_images/gcm.png)
+
+**Area:** Cloud Infrastructure  
+Computes average CPU usage over time, grouped by job or category, using sliding windows and grouping operators.  
+**Why this class:** grouping + windowing + parsing leads to mixed behavior; bottleneck depends on cardinality and state pressure.
+
+### Sentiment Analysis (SA)
+![Sentiment Analysis (SA)](reference_images/sa.png)
+
+**Area:** Social Network  
+Determines tweet sentiment using parsing and classification operators (e.g., Basic/LingPipe classifiers) to score and label tweets.  
+**Why this class:** UDF-heavy classification plus pipeline logic; bottlenecks can shift with DoP and input rate.
+
+### Click Analytics (CA)
+![Click Analytics (CA)](reference_images/ca.png)
+
+**Area:** Web Analytics  
+Analyzes user clicks via two queries: (1) groups clicks by client to compute repeat/total visits per URL, (2) identifies geographic origins using a Geo-IP database.  
+**Why this class:** enrichment + aggregation + state; compound bottlenecks and bottleneck shifts are common.
+
+### Traffic Monitoring (TM)
+![Traffic Monitoring (TM)](reference_images/tm.png)
+
+**Area:** Sensor Network  
+Matches vehicle locations to road segments (map matching) and computes average speed per segment via aggregation.  
+**Why this class:** compute-heavy matching plus stateful aggregation; bottleneck can shift between CPU and state/coordination.
+
+---
+
+## Summary Table
+
+| Workload | Area | Primary bottleneck class |
+|---|---|---|
+| WC | Text Processing | Lightweight stateless / group-by |
+| MO | Network Monitoring | CPU-bound |
+| LR | Traffic Management | Mixed operator / UDF-rich |
+| LP | Web Analytics | Mixed operator / UDF-rich |
+| GCM | Cloud Infrastructure | Mixed operator / UDF-rich |
+| TPCH | E-commerce | Network-bound / shuffle-/join-intensive |
+| BI | Finance | Network-bound / shuffle-/join-intensive |
+| SA | Social Network | Mixed operator / UDF-rich |
+| SG | Sensor Network | Memory-bound / stateful |
+| CA | Web Analytics | Mixed operator / UDF-rich |
+| SD | Sensor Network | Memory-bound / stateful |
+| TT | Social Network | Memory-bound / stateful |
+| TM | Sensor Network | Mixed operator / UDF-rich |
+| AD | Advertising | Network-bound / shuffle-/join-intensive |
+
+---
+
+## Notes on Interpretation
+
+- This classification reflects the **dominant** bottleneck under typical configurations. Under different rates, key cardinalities, and DoP settings, workloads may **shift** bottlenecks.
+- The taxonomy is intended to guide scaling studies, heterogeneous resource selection, and comparisons across Flink vs Storm.
