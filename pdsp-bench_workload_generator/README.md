@@ -125,7 +125,7 @@ Processes vehicle location streams through four queries (toll notification, acci
 **Why this class:** multi-stage pipeline with state and repartitioning; bottlenecks can shift between CPU, state coordination, and network.
 
 ### Logs Processing (LP)
-<img src="../reference_images/PDSP-Bench_WUI_screenshots/lp.png"
+<img src="../reference_images/PDSP-Bench_WUI_screenshots/la.png"
      alt="plot"
      width="300"
      style="border:1px solid #ccc; padding:6px; border-radius:6px;" />
@@ -165,7 +165,7 @@ Analyzes user clicks via two queries: (1) groups clicks by client to compute rep
 **Why this class:** enrichment + aggregation + state; compound bottlenecks and bottleneck shifts are common.
 
 ### Traffic Monitoring (TM)
-<img src="../reference_images/PDSP-Bench_WUI_screenshots/ta.png"
+<img src="../reference_images/PDSP-Bench_WUI_screenshots/tm.png"
      alt="plot"
      width="300"
      style="border:1px solid #ccc; padding:6px; border-radius:6px;" />
