@@ -19,7 +19,7 @@ Based on operator semantics and communication patterns, we assign each workload 
 ## 1) Lightweight Stateless / Group-by Pipelines
 
 ### Word Count (WC)
-![Word Count (WC)]<img src="reference_images/wc.png" alt="Word Count" width="500"/>
+  <img src="../reference_images/PDSP-Bench_WUI_screenshots/wc.PNG" alt="plot" width="500">
 
 **Area:** Text Processing  
 Processes a text stream, tokenizes sentences into words, and counts occurrences of each word in real-time using a keyed aggregation.  
@@ -30,7 +30,7 @@ Processes a text stream, tokenizes sentences into words, and counts occurrences 
 ## 2) CPU-Bound Pipelines
 
 ### Machine Outlier (MO)
-![Machine Outlier (MO)](reference_images/mo.png)
+<img src="../reference_images/PDSP-Bench_WUI_screenshots/mo.PNG" alt="plot" width="500">
 
 **Area:** Network Monitoring  
 Detects anomalies in machine usage data by processing a usage stream using a median-based selection approach (e.g., BFPRT-style logic).  
@@ -41,7 +41,7 @@ Detects anomalies in machine usage data by processing a usage stream using a med
 ## 3) Memory-Bound / Stateful Workloads
 
 ### Spike Detection (SD)
-![Spike Detection (SD)](reference_images/sd.png)
+<img src="../reference_images/PDSP-Bench_WUI_screenshots/sd.PNG" alt="plot" width="500">
 
 **Area:** Sensor Network  
 Processes sensor data streams to detect sudden temperature spikes by computing sliding-window averages and identifying deviations beyond a threshold.  
