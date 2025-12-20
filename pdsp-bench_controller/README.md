@@ -1,102 +1,179 @@
+# PDSP-Bench Controller (Backend)
 
-<h1> PDSP-Bench Controller </h1>
+The **PDSP-Bench Controller** is the backend service of PDSP-Bench. It exposes API endpoints used by the Web UI (WUI) to:
 
-PDSP-Bench Controller acts a central management hub, orchestrating the benchmarking process and performance prediction across diverse workload and resource configurations.
+- register and manage CloudLab nodes
+- create and manage benchmark clusters
+- deploy a selected **System Under Test (SUT)**:
+  - **Apache Flink**
+  - **Apache Storm**
+- execute jobs/topologies and manage experiment lifecycle
+- collect experiment artifacts and metrics for analysis/visualization
 
--  It offers API endpoints for the frontend [PDSP-Bench WUI](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_wui#readme) to take user input for resource provisioning on CloudLab clusters, deploying DSP system, e.g., Apache Flink on cluster, executing job on DSP systems and collecting parallel queries configuration and their performance in databases like MongoDB and SQLite DB.
+The controller is implemented in **Django (Python)** and uses **Ansible playbooks** for cluster provisioning and service management.
 
-## Getting Started with Web User Interface (WUI) 
+---
 
-1. [Prerequisite](#prerequisite)
-1. [General Steps](#general)
-    - [local and remote cluster environment](#local)
-1. [Setup CloudLab Cluster](#setupCluster)
-1. [Next steps: Setup and Start WUI](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_wui#readme)
+## Contents
 
-## Prerequisite<a name="prerequisite"></a>
-- `Ubuntu 20.04` - we used Ubuntu 20.04 for setting up our local and remote clusters for PDSP-Bench.
-- `Windows 10 or 11` - we used Windows Subsystem for Linux (wsl) for the same purpose.
-- `Docker` - We support using Docker as well to install and manage dependencies.
-- Controller is implemented using [Django](https://www.djangoproject.com/) framework written in Python that allows for modular and scalable development of controller.
-- Python3 and pip3 installed.
+- [Prerequisites](#prerequisites)
+- [Run the Controller](#run-the-controller)
+- [CloudLab SSH Access](#cloudlab-ssh-access)
+- [Controller Structure](#controller-structure)
+- [SUT Support: Flink and Storm](#sut-support-flink-and-storm)
+- [Job Binaries](#job-binaries)
+- [Monitoring and Metrics Collection](#monitoring-and-metrics-collection)
+- [Related Components](#related-components)
 
-## General Steps for Setting up WUI
-PDSP-Bench can be run on local machine or it can be delopyed on remote machine as well.
+---
 
-### First time setup local or remote cluster environment<a name="local"></a>
+## Prerequisites
 
-- Go to the root folder containing manage.python
+Recommended versions:
 
+- Python 3.8.10
+- Java 11
+
+Install controller dependencies using `requirements.txt`.
+
+> Notes  
+> - Maven/Gradle are only required if you want to compile job binaries locally (see [Job Binaries](#job-binaries)).  
+> - For CloudLab orchestration, password-less SSH access is required (see [CloudLab SSH Access](#cloudlab-ssh-access)).
+
+---
+
+## Run the Controller
+
+From the repository root:
 ```bash
-cd ~/PDSPBench/dsp_be
-
-```
-- To install dependencies such as `django`, `ansible`, `requests, `channels`, `click`, `pandas`, `paramiko`, execute requirements.txt using pip.
-
-```bash
+cd dsp_be
 pip install -r requirements.txt
 
-```
+python manage.py makemigrations
+python manage.py migrate
 
-- After successful installation, you can run the controller
-
-```bash
 python manage.py runserver
+```     
 
+### Remote Access (Controller)
+
+To expose the controller outside localhost:
+```bash
+python manage.py runserver 0.0.0.0:8000
 ```
-- If you are setting up a vm or remote machine
+
+## CloudLab SSH Access
+
+The controller provisions and configures CloudLab nodes using SSH/Ansible. Ensure:
+
+1. A local SSH key exists (e.g., `~/.ssh/id_rsa.pub`).
+2. The public key is added in CloudLab under **Manage SSH Keys**.
+3. Password-less SSH works from the controller machine to CloudLab nodes:
+```bash
+ssh <cloudlab_user>@<node_fqdn>
+```
+
+Also ensure the CloudLab user default shell is set to bash to avoid hostname binding issues in some setups.
+
+## Controller Structure
+
+Main folders in `dsp_be/`:
+
+| Folder | Purpose |
+|---|---|
+| `dsp_be/` | Django project configuration (settings/urls) |
+| `auth/` | Authentication and user info storage |
+| `infra/` | Cluster creation and job execution logic, framework assets, reporting scripts |
+| `report/` | Views/endpoints for live monitoring + artifact-based analysis |
+| `utils/` | Ansible playbooks and provisioning utilities |
+
+Common framework asset paths:
+
+- `dsp_be/infra/flink_files/` — Flink job jar and related files
+- `dsp_be/infra/storm_files/` — Storm topology jar and related files
+- `dsp_be/infra/reporting_scripts/` — scripts for parsing/collecting metrics/artifacts
+
+Job execution is abstracted through:
+
+- `runner.py` — framework-independent execution wrapper (routes Flink vs Storm execution based on cluster SUT)
+
+---
+
+## SUT Support: Flink and Storm
+
+When creating a cluster in the Web UI, the controller deploys the selected SUT.
+
+### Apache Flink
+
+- **Cluster roles:** JobManager (main node) + TaskManagers (worker nodes)
+- **Execution:** submit jar jobs to Flink
+- **Monitoring:** live metrics via Prometheus/Grafana + exported artifacts
+
+### Apache Storm
+
+- **Cluster roles:** Nimbus + Storm UI (main node), Supervisors (worker nodes), ZooKeeper (cluster)
+- **Execution:** submit topologies from the Storm jar
+- **Monitoring:**
+  - Storm UI provides operational visibility
+  - metrics are collected primarily through exporter/scripts and artifacts
+  - Storm metrics may update at coarse granularity (often ~1 minute)
+
+---
+
+## Job Binaries
+
+PDSP-Bench uploads compiled jars to the cluster main node to execute jobs/topologies.
+
+Because GitHub limits large files, binaries may not be included and must be compiled locally.
+
+### Build Flink job jar
 
 ```bash
-
-python3 manage.py runserver 0.0.0.0:8000
-
+cd dsp_jobs
+mvn package
+cp ./target/dsp_jobs-1.0-SNAPSHOT.jar ../dsp_be/infra/flink_files/
 ```
 
-## PDSP-Bench Controller Project Structure
 
-PDSP-controller has the following main components
+### Build Storm topology jar
 
-| Folder             | Functionality                                                                |
-| ----------------- | ------------------------------------------------------------------ |
-| dsp_be | It is the main django app with base urls in its urls.py |
-| auth | Authenticates users and save their info in DB. |
-| infra | Contains logic to create the clusters, providing jobs etc. |
-| report | Logic to call endpoints from Flink API and send the cluster/job specific information to the Frontend |
-| utils | Contains Ansible playbooks |
+```bash
+cd dsp_storm_jobs
+./gradlew shadowJar
+cp ./build/libs/dsp_storm_jobs-1.0-SNAPSHOT-all.jar ../dsp_be/infra/storm_files/
+```
+> Tip: Both directories include Makefiles that run these commands directly.
 
-### Performance Monitoring using Prometheus to Collect Metrics 
+## Monitoring and Metrics Collection
 
-We are using [Prometheus](https://prometheus.io/) for monitoring performance while query are executing on Flink. You can extend controller to monitor more performance based on your requirement. These steps are only for explanation purpose. For current performance metrics, it is already being done using CloudLab profile.
+PDSP-Bench supports both **live monitoring** and **artifact-based analysis**.
 
-In general, the performance monitoring profile via Prometheus connection flow is as follows:
+### Prometheus + Grafana (Flink + Hardware)
 
-- Flink exposes metrics to Prometheus -----> Prometheus stores this data in a time-series database -----> Grafana queries this metric data from Prometheus's time-series database using PromQL.
+Typical flow:
 
-- To connect Prometheus to Flink: you need to include these jar files in ```flink-1.16.2/lib``` : ```jna-platform-5.10.0.jar```, ```jna-5.10.0.jar```, ```oshi-core-6.1.5.jar```
+- Flink and node exporters expose metrics  
+- Prometheus scrapes metrics and stores time series  
+- Grafana dashboards query Prometheus via PromQL  
 
-- The ```flink-conf.yaml``` file, that resides at /flink-1.16.2/conf(in CloudLab node) must contain these lines
-```metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory```
-```metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter```
-```metrics.reporter.prom.port: 9250```
+This repository extends Prometheus support to include **hardware metrics** (CPU/memory/network) using **Prometheus Node Exporter**.
 
-- The ```prometheus.yml``` that resides at ```/prometheus-2.42.0.linux-amd64``` in CloudLab node should have the following details about job and task managers. The jobmanager and taskmanager targets change with changing cluster nodes.
+### Storm Metrics
 
+Storm metrics are collected through Storm-specific scripts/exporter and are primarily supported through artifacts:
 
-### Performance Visualization using Grafana Graphs
+- `getprom_storm.py` — Storm metrics collection  
+- Storm exporter script on main node (restart if needed):  
+  - `/home/playground/apache-storm-2.6.2/bin/storm_exporter.sh`
 
-We are using [Grafana](https://grafana.com/) for visualizing performance in real-time. These steps are only for explanation purpose. These steps are only for explanation purpose. For current performance metrics, it is already being done using CloudLab profile. 
+---
 
-- To add Grafana graphs, you can plot all the metrics Flink exposes to Prometheus. Flink exposes several default metrics that can be checked at [Flink's official documentation](https://nightlies.apache.org/flink/flink-docs-master/docs/ops/metrics/). However, to create the Grafana graphs, you would need the exact ```PromQL query``` which can be checked in the Prometheus dashboard running at locally or remote machine e.g., `http://localhost:9090` or `REMOTE_MACHINE_IP:9090`. 
+## Related Components
 
-- Currently in our application, Grafana is plotting graphs for four PromQL queries. They are ```flink_taskmanager_Status_JVM_CPU_Load , flink_jobmanager_Status_JVM_CPU_Load , flink_taskmanager_Status_JVM_Memory_Heap_Used , flink_taskmanager_System_Network_eno33np0_SendRate```. For other metrics such as for data analysis, learned cost models' accuracy, metrics which are not supported by Flink, we are also using `D3.js` as well.
+- Web UI (frontend): `dsp_fe/`
+- CloudLab profile setup: `dsp_cloudlab_profile/`
 
-- The connection flow is as follows: Flink exposes metrics to Prometheus -----> Prometheus stores this data in a time-series database -----> Grafana queries this metric data from Prometheus's time-series database using PromQL for eg: ```flink_taskmanager_Status_JVM_CPU_Load``` -----> Then this plotted graph from the Grafana dashboard is used as an ``iframe``to embed on our vue.js frontend.
+See also:
 
-- Let us assume, you decide to add another graph for the example metrics query ```flink_taskmanager_Status_JVM_CPU_Load_example_query_metrics``` in Grafana. You can use following steps to add metrics to Grafana for real-time visualization:
-    - Navigate to the folder ```~/PDSPBench/dsp_be/infra/grafana_files/``` and open the file cluster.json. It is a JSON object and you can see there is a key called ```"panels"``` that contains a list of objects. When you expand one of the objects ```{}```, you will see the data specific to one metric graph in the front end. 
-    -   To create one of your own, copy and paste the entire single ```{}``` and then change the values for the following keys ```"id"```, ```"expr"```, ```"title"```. for example: ```"id"``` can be ```5```, ```"expr"``` can be ```flink_taskmanager_Status_JVM_CPU_Load_example_query_metrics``` and ```"title"``` can be ```Test metric number 5```. 
-    - At this stage, you can re-create the CloudLab experiment. 
-    - You can provide a job and then look into Grafana dashboard at the URL `http://localhost:3000` or `REMOTE_MACHINE_IP:3000`, depending upon whether Grafana is running locally or remotely. 
-    - Now you can navigate to each of the panels(graph windows) to select and copy the ``iframe`` which you can embed in the vue.js frontend. 
-    - To embed the ``iframe`` in the vue.js app, navigate to ```~/PDSPBench/dsp_fe/src/views/dashboard/IndividualJob.vue```. 
-    - Line numbers 166 to 177 already contain existing embedded iframes. just paste your copied iframe below them and then you can see the new graph in the frontend if you refresh the browser page.
+- `dsp_fe/README.md` (frontend setup and remote access)
+- `dsp_cloudlab_profile/README.md` (CloudLab node provisioning)
