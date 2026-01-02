@@ -170,10 +170,10 @@ Storm metrics are collected through Storm-specific scripts/exporter and are prim
 
 ## Related Components
 
-- Web UI (frontend): `dsp_fe/`
-- CloudLab profile setup: `dsp_cloudlab_profile/`
+- Web UI (frontend): `pdsp-bench_wui/`
+- CloudLab profile setup: `pdsp-bench_Cloud_setup/`
 
 See also:
 
-- `dsp_fe/README.md` (frontend setup and remote access)
-- `dsp_cloudlab_profile/README.md` (CloudLab node provisioning)
+- `pdsp-bench_wui/README.md` (frontend setup and remote access)
+- `pdsp-bench_Cloud_setup/README.md` (CloudLab node provisioning)

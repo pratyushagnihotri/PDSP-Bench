@@ -178,24 +178,131 @@ Matches vehicle locations to road segments (map matching) and computes average s
 
 ## Summary Table
 
-| Workload | Area | Primary bottleneck class |
-|---|---|---|
-| WC | Text Processing | Lightweight stateless / group-by |
-| MO | Network Monitoring | CPU-bound |
-| LR | Traffic Management | Mixed operator / UDF-rich |
-| LP | Web Analytics | Mixed operator / UDF-rich |
-| GCM | Cloud Infrastructure | Mixed operator / UDF-rich |
-| TPCH | E-commerce | Network-bound / shuffle-/join-intensive |
-| BI | Finance | Network-bound / shuffle-/join-intensive |
-| SA | Social Network | Mixed operator / UDF-rich |
-| SG | Sensor Network | Memory-bound / stateful |
-| CA | Web Analytics | Mixed operator / UDF-rich |
-| SD | Sensor Network | Memory-bound / stateful |
-| TT | Social Network | Memory-bound / stateful |
-| TM | Sensor Network | Mixed operator / UDF-rich |
-| AD | Advertising | Network-bound / shuffle-/join-intensive |
+<table>
+  <thead>
+    <tr>
+      <th>Workload</th>
+      <th>CPU</th>
+      <th>State</th>
+      <th>Network</th>
+      <th>UDF</th>
+      <th>Stateless</th>
+      <th>ML</th>
+      <th>Why this category?</th>
+      <th>Data flow graph (query plan)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>AD</b> (Ads Analytics)</td>
+      <td></td><td>✓</td><td>✓</td><td></td><td></td><td></td>
+      <td>Two-branch pipeline that aggregates clicks and impressions, then performs a windowed join; join state and repartitioning dominate.</td>
+      <td><code>Source</code> &rarr; <code>ParseClicks</code> || <code>ParseImpressions</code> &rarr; <code>keyBy(qid,adid)</code> &rarr; <code>Agg(sum)</code> || <code>Agg(sum)</code> &rarr; <code>WindowJoin</code> &rarr; <code>Filter/CTR</code> &rarr; <code>Sink</code></td>
+    </tr>
+     <tr>
+      <td><b>BI</b> (Bargain Index)</td>
+      <td></td><td>✓</td><td></td><td>✓</td><td></td><td></td>
+      <td>Keyed sliding window maintains VWAP state/timers; downstream index computation is secondary.</td>
+      <td><code>Source</code> &rarr; <code>ParseQuote(map)</code> &rarr; <code>keyBy(sym)</code> &rarr; <code>WinAgg(VWAP)</code> &rarr; <code>ComputeBI(flatMap)</code> &rarr; <code>Sink</code></td>
+    </tr>
+    <tr>
+      <td><b>CA</b> (Click Analytics)</td>
+      <td></td><td>✓</td><td></td><td>✓ (Q2)</td><td></td><td></td>
+      <td>Repeat-visit keeps keyed window state and adds a second keyed reduce; geo variant adds enrichment UDFs.</td>
+      <td>
+        <code>Source</code> &rarr; <code>ParseClick(map)</code> &rarr;
+        <br/>
+        <small>
+          (Q1/Q3: <code>keyBy(client)</code> &rarr; <code>WinAgg(RV)</code> &rarr; <code>keyBy(url)</code> &rarr; <code>Reduce</code>)
+          &nbsp;||&nbsp;
+          (Q2: <code>GeoEnrich(Process/UDF)</code>)
+        </small>
+        <br/>
+        &rarr; <code>Sink</code>
+      </td>
+    </tr>
+    <tr>
+      <td><b>GCM</b> (Google Cloud Monitoring)</td>
+      <td></td><td>✓</td><td></td><td>✓</td><td></td><td></td>
+      <td>Keyed sliding windows per category/job maintain state and trigger timers; window coordination dominates.</td>
+      <td><code>Source</code> &rarr; <code>ParseTaskEvt(map)</code> &rarr; <code>keyBy(cat/job)</code> &rarr; <code>WinAgg(Apply/Process)</code> &rarr; <code>Sink</code></td>
+    </tr>
+    <tr>
+      <td><b>LR</b> (Linear Road)</td>
+      <td></td><td>✓</td><td></td><td></td><td></td><td></td>
+      <td>All variants are key-driven and/or windowed, requiring per-key tracking and window coordination.</td>
+      <td>
+        <code>Source</code> &rarr; <code>ParseVehicle(map)</code> &rarr;
+        <small>
+          (Q1: <code>keyBy(veh)</code> &rarr; <code>map</code>) |
+          (Q2: <code>keyBy(time)</code> &rarr; <code>WindowProcess</code>) |
+          (Q3/Q4: <code>keyBy(veh)</code> &rarr; <code>map</code>)
+        </small>
+        &rarr; <code>Sink</code>
+      </td>
+    </tr>
+    <tr>
+      <td><b>LA</b> (Log Processing)</td>
+      <td></td><td>✓</td><td></td><td>✓</td><td></td><td></td>
+      <td>Keyed sliding-window counters maintain per-window state and timers for volume/status metrics.</td>
+      <td><code>Source</code> &rarr; <code>ParseLog(map)</code> &rarr; <code>keyBy(logTime)</code> &rarr; <code>WinAgg(Volume/Status)</code> &rarr; <code>Sink</code></td>
+    </tr>
+    <tr>
+      <td><b>MO</b> (Machine Outlier)</td>
+      <td>✓</td><td>✓</td><td></td><td>✓</td><td></td><td></td>
+      <td>Keyed sliding window maintains state while the window function runs compute-heavy outlier selection.</td>
+      <td><code>Source</code> &rarr; <code>ParseMachineUsage(map)</code> &rarr; <code>keyBy(machine)</code> &rarr; <code>WinAgg(Outlier/BFPRT)</code> &rarr; <code>Sink</code></td>
+    </tr>
+    <tr>
+      <td><b>SA</b> (Sentiment Analysis)</td>
+      <td>✓</td><td></td><td></td><td>✓</td><td></td><td>✓</td>
+      <td>Text preprocessing and sentiment classification are compute-heavy and ML-based; CPU/UDF dominate.</td>
+      <td><code>ParseJSON</code> &rarr; <code>Filter(lang)</code> &rarr; <code>Preproc</code> &rarr; <code>Classify(ML)</code> &rarr; <code>Sink</code></td>
+    </tr>
+    <tr>
+      <td><b>SG</b> (Smart Grid)</td>
+      <td></td><td>✓</td><td></td><td>✓</td><td></td><td></td>
+      <td>Keyed sliding windows maintain per-house state and timers; repartitioning increases coordination at higher DoP.</td>
+      <td><code>Source</code> &rarr; <code>ParseHouseEvt(map)</code> &rarr; <code>keyBy(house / house,hh,plug)</code> &rarr; <code>WinAgg(Q1/Q2)</code> &rarr; <code>Sink</code></td>
+    </tr>
+    <tr>
+      <td><b>SD</b> (Spike Detection)</td>
+      <td></td><td>✓</td><td></td><td>✓</td><td></td><td></td>
+      <td>Keyed moving-average window maintains state; downstream spike filter is lightweight.</td>
+      <td><code>Source</code> &rarr; <code>ParseSensor(flatMap)</code> &rarr; <code>keyBy(sensor)</code> &rarr; <code>WinAgg(MovAvg)</code> &rarr; <code>Filter(spike)</code> &rarr; <code>Sink</code></td>
+    </tr>
+    <tr>
+      <td><b>TPCH</b> (TPC-H Stream Query)</td>
+      <td></td><td>✓ (Q2)</td><td></td><td>✓</td><td>✓ (Q1)</td><td></td>
+      <td>Q1 is lightweight filter/mapping; Q2 adds a keyed sliding window; both end in keyed priority aggregation.</td>
+      <td>
+        <code>Source</code> &rarr; <code>ParseTPCH(map)</code> &rarr;
+        <small>(Q1: <code>Filter</code>) | (Q2: <code>keyBy(discount)</code> &rarr; <code>WinAgg</code>)</small>
+        &rarr; <code>MapPriority(flatMap)</code> &rarr; <code>keyBy(priority)</code> &rarr; <code>Agg(sum)</code> &rarr; <code>Sink</code>
+      </td>
+    </tr>
+    <tr>
+      <td><b>TM</b> (Traffic Monitoring)</td>
+      <td>✓</td><td>✓</td><td></td><td>✓</td><td></td><td></td>
+      <td>Map matching is a compute-heavy UDF, followed by a keyed sliding-window aggregation per road.</td>
+      <td><code>Source</code> &rarr; <code>ParseTraffic(map)</code> &rarr; <code>MapMatch(UDF)</code> &rarr; <code>keyBy(road)</code> &rarr; <code>WinAgg(AvgSpeed)</code> &rarr; <code>Sink</code></td>
+    </tr>
+    <tr>
+      <td><b>TT</b> (Trending Topics)</td>
+      <td>✓</td><td>✓</td><td></td><td>✓</td><td></td><td></td>
+      <td>Topic extraction is compute-heavy; then keyed sliding-window counting maintains state/timers before thresholding.</td>
+      <td><code>Source</code> &rarr; <code>ParseTweet(map)</code> &rarr; <code>ExtractTopic(UDF)</code> &rarr; <code>keyBy(topic)</code> &rarr; <code>WinAgg(Count)</code> &rarr; <code>Filter(thresh)</code> &rarr; <code>Sink</code></td>
+    </tr>
+    <tr>
+      <td><b>WC</b> (WordCount)</td>
+      <td></td><td></td><td></td><td></td><td>✓</td><td></td>
+      <td>Simple split-and-count; keyed aggregation; lightweight per-record work and minimal state.</td>
+      <td><code>Source</code> &rarr; <code>Split(flatMap)</code> &rarr; <code>keyBy(word)</code> &rarr; <code>Agg(sum)</code> &rarr; <code>Sink</code></td>
+    </tr>
+  </tbody>
+</table>
 
----
+
 
 ## Notes on Interpretation
 
