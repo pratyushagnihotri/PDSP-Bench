@@ -4,36 +4,9 @@
 
 PDSP-Bench is a benchmarking system for **parallel and distributed stream processing** on **heterogeneous hardware configurations**. It supports deploying and benchmarking different **Stream Processing Engines (SPEs)** as the **System Under Test (SUT)**—including **Apache Flink** and **Apache Storm**—using real-world and synthetic streaming applications. PDSP-Bench collects and visualizes performance metrics such as **end-to-end latency**, **throughput**, and **resource utilization**, and exports experiment artifacts for offline analysis and ML-based modeling.
 
-
-## Citation
-
-Please cite our papers, if you find this work useful or use it in your paper as a baseline.
-
-```
-@inproceedings{Agnihotri_TPCTC_2024_PDSPBench,
-author    =       {Agnihotri, Pratyush, and Koldehofe, Boris, and Heinrich, Roman, and Binnig, Carsten and Luthra, Manisha},
-editor    =       {Nambiar, Raghunath and Poess, Meikel},
-title     =       {PDSP-Bench: A Benchmarking System for¬†Parallel and¬†Distributed Stream Processing},
-booktitle =       {Performance Evaluation and Benchmarking},
-year      =       {2026},
-publisher =       {Springer Nature Switzerland},
-pages     =       {1--23}
-}
-
-@inproceedings{Agnihotri_SIGMOD_Demo_PDSPBench_2025,
-author      =     {Agnihotri, Pratyush and Binnig, Carsten},
-title       =     {Demonstrating PDSP-Bench: A Benchmarking System for Parallel and Distributed Stream Processing},
-year        =     {2025},
-booktitle   =     {Companion of the 2025 International Conference on Management of Data},
-pages       =     {7–10},
-numpages    =     {4},
-}
-
-```
-
 <h3>Dedicated Repository for Paper Submission:</h3>
 
-This repository supports our paper submission  **Benchmarking Parallel Stream Processing in Heterogeneous Environments: An Empirical Analysis with PDSP-Bench** and contains the main components required to provision infrastructure, deploy stream processing engines, run benchmarking experiments, and analyze results.
+This repository supports our paper submission  **Is Parallelism a Silver Bullet? An Empirical Study of Parallelism Behavior in Distributed Stream Processing Systems** and contains the main components required to provision infrastructure, deploy stream processing engines, run benchmarking experiments, and analyze results.
 
 ## Key Concepts
 
