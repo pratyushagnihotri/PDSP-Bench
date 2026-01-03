@@ -20,7 +20,7 @@ In the context of~\ac{dsp} benchmarking, web user interface (WUI) of PDSP-Bench 
 - `Ubuntu 20.04` - we used Ubuntu 20.04 for setting up our local and remote clusters for PDSP-Bench.
 - `Windows 10 or 11` - we used Windows Subsystem for Linux (wsl) for the same purpose.
 - `Docker` - We support using Docker as well to install and manage dependencies.
-- WUI is implemented using []`Vue.js](https://vuejs.org/)
+- WUI is implemented using [Vue.js](https://vuejs.org/)
 - [Node.js](https://nodejs.org/en) version 16.0 or higher and [npm](https://www.npmjs.com/) version 9.6.7 or higher
 
 ## General Steps for Setting up WUI
@@ -32,7 +32,7 @@ PDSP-Bench can be run on local machine or it can be delopyed on remote machine a
 
 ```bash
 
-cd ~/PDSPBench/dsp_fe/
+cd ~/PDS-PBench/dsp_fe/
 
 ```
 
@@ -63,7 +63,7 @@ npm run serve
 
 ```bash
 
-cd ~/PDSPBench/dsp_fe/
+cd ~/PDS-PBench/dsp_fe/
 
 ```
 -
@@ -145,7 +145,3 @@ After creating resource nodes on CloudLab and starting the PDPS-Bench controller
 >   -   Apache Flink: http://<Your-Local/Remote/MasterNode/Machine-IP-Address>:8086
 >   -   Grafana: http://<Your-Local/Remote/MasterNode/Machine-IP-Address>:3000 
 >   -   Prometheus: http://<Your-Local/Remote/MasterNode/Machine-IP-Address>:9090
-
-
-
- 
