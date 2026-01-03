@@ -1,147 +1,106 @@
-<h1> PDSP-Bench - Web User Interface (WUI) </h1>
+<h1>PDSP-Bench – Web User Interface (WUI) (Apache Flink & Apache Storm)</h1>
 
-In the context of~\ac{dsp} benchmarking, web user interface (WUI) of PDSP-Bench is designed to simplify the performance benchmarking and forecasting process. 
-- It serves as a portal through which users can effortlessly deploy homogeneous and heterogeneous clusters, configure~\ac{dsp} settings, and select workloads and a variety of parallel query plans derived from both 14 real-world applications and 9 synthetic benchmarks. 
-- It  acts as a gateway, forwarding user-defined benchmark configurations to the [pdsp-bench_controller:](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_controller#readme), which orchestrates the initiation of the benchmarking process. 
-- The visualization component of WUI enables real-time monitoring of key performance indicators such as end-to-end latency and resource utilization, offering immediate insights into DSP systems behavior under test conditions. 
-- [pdsp-bench_controller:](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_controller#readme) archives every test configuration and its resultant performance metrics in a database. This archival facilitates historical analysis and comparisons, enriching the benchmarking process with a temporal dimension. 
+<p>
+In the context of distributed stream processing (DSP) benchmarking, the PDSP-Bench Web User Interface (WUI)
+simplifies benchmark configuration, execution, and monitoring for <b>Apache Flink</b> and <b>Apache Storm</b>.
+</p>
 
+<ul>
+  <li>
+    Acts as a portal to deploy homogeneous/heterogeneous clusters, configure DSP settings, select workloads,
+    and choose parallel query plans (real-world and synthetic benchmarks) for <b>Flink</b> or <b>Storm</b>.
+  </li>
+  <li>
+    Forwards the user-defined benchmark configuration to the
+    <a href="https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_controller#readme">pdsp-bench_controller</a>,
+    which orchestrates cluster setup and job execution on the selected DSPS (Flink/Storm).
+  </li>
+  <li>
+    Provides real-time visualization of key performance indicators (e.g., throughput, end-to-end latency,
+    and resource utilization) during job execution.
+  </li>
+  <li>
+    Stores configurations and measured performance metrics (via the controller’s database) to support
+    historical analysis and comparisons across systems and hardware.
+  </li>
+</ul>
 
-## Getting Started with Web User Interface (WUI) 
+<h2>Getting Started with the WUI</h2>
 
-1. [Prerequisite](#prerequisite)
-1. [General Steps](#general)
-    - [local cluster environment](#local)
-    - [remote cluster environment](#remote)
-1. [Setup CloudLab Cluster](#setupCluster)
-1. [Previous steps: Setup and Start Controller](https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_controller#readme)
+<ol>
+  <li><a href="#prerequisite">Prerequisites</a></li>
+  <li><a href="#general">General setup</a>
+    <ul>
+      <li><a href="#local">Local environment</a></li>
+      <li><a href="#remote">Remote environment</a></li>
+    </ul>
+  </li>
+  <li><a href="#setupCluster">Setup cluster (e.g., CloudLab)</a></li>
+  <li>
+    Previous step: setup and start the controller
+    (<a href="https://github.com/pratyushagnihotri/PDSPBench/tree/master/pdsp-bench_controller#readme">pdsp-bench_controller README</a>)
+  </li>
+</ol>
 
-## Prerequisite<a name="prerequisite"></a>
-- `Ubuntu 20.04` - we used Ubuntu 20.04 for setting up our local and remote clusters for PDSP-Bench.
-- `Windows 10 or 11` - we used Windows Subsystem for Linux (wsl) for the same purpose.
-- `Docker` - We support using Docker as well to install and manage dependencies.
-- WUI is implemented using [Vue.js](https://vuejs.org/)
-- [Node.js](https://nodejs.org/en) version 16.0 or higher and [npm](https://www.npmjs.com/) version 9.6.7 or higher
+<h2 id="prerequisite">Prerequisites</h2>
+<ul>
+  <li>Ubuntu 20.04 (or equivalent Linux). Windows 10/11 via WSL is also supported.</li>
+  <li>Docker (optional) to install/manage dependencies.</li>
+  <li>WUI is implemented in <a href="https://vuejs.org/">Vue.js</a>.</li>
+  <li>Node.js (v16+) and npm (v9+ recommended).</li>
+</ul>
 
-## General Steps for Setting up WUI
-PDSP-Bench can be run on local machine or it can be delopyed on remote machine as well.
+<h2 id="general">General Steps for Setting up the WUI</h2>
+<p>The WUI can be run locally or on a remote machine. The controller can deploy and manage either Flink or Storm clusters.</p>
 
-### First time setup local cluster environment<a name="local"></a>
-
-- Navigate to the folder from your terminal
-
-```bash
-
-cd ~/PDS-PBench/dsp_fe/
-
-```
-
-- Now you can install all the dependencies of the frontend by giving the command
-
-
-```bash
-
+<h3 id="local">First-time setup (local)</h3>
+<pre><code>cd ~/PDSP-Bench/dsp_fe/
 npm install
-
-```
-> Note: It will take sometime to finish the installating the dependencies.
-
-- Now you can start the WUI
-
-```bash
-
 npm run serve
+</code></pre>
+<p>Open the URL printed in the terminal (commonly <code>http://localhost:8080</code>).</p>
 
-```
-
-- The frontend can be accessed using the browser and visiting to the link http://localhost:8080
-
-
-### First time setup remote cluster environment<a name="remote"></a>
-
-- Navigate to the folder from your terminal
-
-```bash
-
-cd ~/PDS-PBench/dsp_fe/
-
-```
--
-```bash
-
+<h3 id="remote">First-time setup (remote)</h3>
+<pre><code>cd ~/PDSP-Bench/dsp_fe/
 ls -al
-
-```
-
-- You will see the hidden file '.env.development.local'. Open this file to bring few changes.
-
-```bash
-
 vim .env.development.local
+</code></pre>
 
-```
+<p>
+Update <code>VUE_APP_URL</code> to the public/reachable IP address of your remote machine, e.g.:
+</p>
+<pre><code>VUE_APP_URL="IP_ADDRESS_OF_YOUR_REMOTE_MACHINE"
+</code></pre>
 
-- change the line `VUE_APP_URL=http://localhost` to `VUE_APP_URL="IP_ADDRESS_OF_YOUR_REMOTE_MACHINE"` e.g., 10.2.2.85 
-This IP address `10.2.2.85` is just an example of the ip address of the VM. You can replace it with your remote machines's IP address._
-
-
-- Same as local machine, now you can install all the dependencies of the frontend by giving the command
- 
-
-```bash
-
-npm install
-
-```  
-
-- Now you can start the WUI
-
-
-```bash
-
+<pre><code>npm install
 npm run serve
+</code></pre>
 
-```
+<p>Access the WUI from your browser using the remote IP (port depends on your Vue dev server configuration).</p>
 
-- The frontend can be accessed at http://10.2.2.85:8080 (10.2.2.85 is an example and it represents the ip address of your remote machine.)
+<h2 id="setupCluster">WUI workflow (Flink & Storm)</h2>
+<p>After provisioning nodes (e.g., CloudLab) and starting the controller, use the WUI to:</p>
 
+<ul>
+  <li><b>Explore nodes</b>: add hostnames and your cluster username.</li>
+  <li><b>Create cluster</b>: create one or more clusters; choose the DSPS backend (<b>Flink</b> or <b>Storm</b>) depending on your experiment plan.</li>
+  <li><b>Explore cluster</b>: view details and open the job submission area to select workloads, parameters, and parallel query plans.</li>
+  <li><b>Explore jobs</b>: view running jobs and monitor real-time metrics.</li>
+  <li><b>Data analytics</b>: compare historical runs across DSPS, hardware tiers, input rates, and parallelism settings.</li>
+</ul>
 
-## Overview of Steps in the PDSP-Bench WUI
-After creating resource nodes on CloudLab and starting the PDPS-Bench controller and have the hostnames, you can move ahead to the frontend on the browser and perform the following tasks :
+<h2>Troubleshooting / Service Endpoints</h2>
+<p>Verify that the system-specific services are reachable after cluster setup:</p>
 
-- Navigate to the `Explore node` tab from the navigation bar in the left and nodes from CloudLab cluster.
-- Add all the `hostnames` of all the nodes along with your CloudLab `username`. For example,
-  <img src="../reference_images/PDSP-Bench_WUI_screenshots/Explore_Nodes.PNG" alt="plot" width="600">
+<ul>
+  <li><b>Apache Flink Web UI (JobManager)</b>: <code>http://&lt;Your-Local/Remote/MasterNode/Machine-IP-Address&gt;:8086</code></li>
+  <li><b>Apache Storm UI</b>: <code>http://&lt;Your-Local/Remote/MasterNode/Machine-IP-Address&gt;:8080</code></li>
+  <li><b>Apache Storm Logviewer</b>: <code>http://&lt;Your-Local/Remote/MasterNode/Machine-IP-Address&gt;:8000</code></li>
+  <li><b>Grafana</b>: <code>http://&lt;Your-Local/Remote/MasterNode/Machine-IP-Address&gt;:3000</code></li>
+  <li><b>Prometheus</b>: <code>http://&lt;Your-Local/Remote/MasterNode/Machine-IP-Address&gt;:9090</code></li>
+</ul>
 
-- Navigate to `Create Cluster` tab from the navigation menu and create a cluster with necessary parameters. You can create as many clusters you wish dividing the number of CloudLab nodes in previous cluster. 
-
-  <img src="../reference_images/PDSP-Bench_WUI_screenshots/Create_Cluster.PNG" alt="plot" width="600">
-
-
-  <img src="../reference_images/PDSP-Bench_WUI_screenshots/Explore_Cluster.png" alt="plot" width="600">
-
-
-- Navigate to `Explore Cluster` tab from the navigation menu and click on `view more` and `provide jobs` tab to execute queries with various workload and query parameters. 
-
-  <img src="../reference_images/PDSP-Bench_WUI_screenshots/PQP_Cluster.PNG" alt="plot" width="600">
-
-  <img src="../reference_images/PDSP-Bench_WUI_screenshots/PQP_Generator.PNG" alt="plot" width="600">
-
-- Navigate to `Explore Jobs` tab from the navigation menu and click on ``` view more``` next to the list of each job to visualize real-time performance of executing jobs.
-
-  <img src="../reference_images/PDSP-Bench_WUI_screenshots/real_time_visualization.png" alt="plot" width="600">
-
-- Navigate to `Data Analytics` tab from the navigation menu to visualize and compare historical performance metrics. Pre-condition, that you have already run one or multiple jobs on single or multiple clusters.
-
-  - Indiviual query performance
-
-  <img src="../reference_images/PDSP-Bench_WUI_screenshots/individgraphs.png" alt="plot" width="600">
-
-  - Compare different configurations
-
-   <img src="../reference_images/PDSP-Bench_WUI_screenshots/compgraph.png" alt="plot" width="600">
-
-> Troubleshooting: In case of issue, check whether different services are running after cluster setup:
->   -   Apache Flink: http://<Your-Local/Remote/MasterNode/Machine-IP-Address>:8086
->   -   Grafana: http://<Your-Local/Remote/MasterNode/Machine-IP-Address>:3000 
->   -   Prometheus: http://<Your-Local/Remote/MasterNode/Machine-IP-Address>:9090
+<p>
+If a UI is not reachable, check (i) the service is running, (ii) firewall/security-group rules,
+and (iii) port forwarding (if using a remote environment).
+</p>
